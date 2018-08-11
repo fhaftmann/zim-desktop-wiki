@@ -64,6 +64,8 @@ class TaskListWidget(gtk.VBox, TaskListWidgetMixin, WindowSidePaneWidget):
 		self.uistate.setdefault('only_show_act', False)
 		self.uistate.setdefault('show_flatlist', False)
 
+		column_layout=TaskListTreeView.COMPACT_COLUMN_LAYOUT_WITH_DUE \
+			if preferences['with_due'] else TaskListTreeView.COMPACT_COLUMN_LAYOUT
 		self.task_list = TaskListTreeView(
 			tasksview, opener,
 			_parse_task_labels(preferences['labels']),
@@ -71,7 +73,7 @@ class TaskListWidget(gtk.VBox, TaskListWidgetMixin, WindowSidePaneWidget):
 			filter_actionable=self.uistate['only_show_act'],
 			tag_by_page=preferences['tag_by_page'],
 			use_workweek=preferences['use_workweek'],
-			compact=True,
+			column_layout=column_layout,
 			flatlist=self.uistate['show_flatlist'],
 		)
 		self.task_list.connect('populate-popup', self.on_populate_popup)
@@ -337,10 +339,6 @@ def days_to_str(days):
 
 class TaskListTreeView(BrowserTreeView):
 
-	# TODO "compact" view should be subclass
-	#  Base <|-- View
-	#  Base <|-- CompactView
-	#
 	# idem for flat list vs tree
 
 	VIS_COL = 0 # visible
@@ -355,12 +353,16 @@ class TaskListTreeView(BrowserTreeView):
 	PRIO_SORT_COL = 9
 	PRIO_SORT_LABEL_COL = 10
 
+	RICH_COLUMN_LAYOUT = 11
+	COMPACT_COLUMN_LAYOUT = 12
+	COMPACT_COLUMN_LAYOUT_WITH_DUE = 13
+
 	def __init__(self,
 		tasksview, opener,
 		task_labels,
 		nonactionable_tags=(),
 		filter_actionable=False, tag_by_page=False, use_workweek=False,
-		compact=False, flatlist=False,
+		column_layout=RICH_COLUMN_LAYOUT, flatlist=False,
 		sort_column=PRIO_COL, sort_order=gtk.SORT_DESCENDING
 	):
 		self.real_model = gtk.TreeStore(bool, bool, int, str, str, object, str, str, int, int, str)
@@ -410,7 +412,7 @@ class TaskListTreeView(BrowserTreeView):
 		column.set_resizable(True)
 		column.set_sort_column_id(self.DESC_COL)
 		column.set_expand(True)
-		if compact:
+		if column_layout != self.RICH_COLUMN_LAYOUT:
 			column.set_min_width(100)
 		else:
 			column.set_min_width(300) # don't let this column get too small
@@ -456,7 +458,7 @@ class TaskListTreeView(BrowserTreeView):
 					color = None
 			cell.set_property('cell-background', color)
 
-		if not compact:
+		if column_layout != self.COMPACT_COLUMN_LAYOUT:
 			cell_renderer = gtk.CellRendererText()
 			column = gtk.TreeViewColumn(_('Date'), cell_renderer)
 				# T: Column header Task List dialog
@@ -465,7 +467,7 @@ class TaskListTreeView(BrowserTreeView):
 			self.append_column(column)
 
 		# Rendering for page name column
-		if not compact:
+		if column_layout == self.RICH_COLUMN_LAYOUT:
 			cell_renderer = gtk.CellRendererText()
 			column = gtk.TreeViewColumn(_('Page'), cell_renderer, text=self.PAGE_COL)
 					# T: Column header Task List dialog

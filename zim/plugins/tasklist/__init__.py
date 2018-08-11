@@ -72,6 +72,8 @@ This is a core plugin shipping with zim.
 			# T: preferences option
 		('pane', 'choice', _('Position in the window'), RIGHT_PANE, PANE_POSITIONS),
 			# T: preferences option
+		('with_due', 'bool', _('Show due date in sidepane'), False)
+			# T: preferences option
 	) + parser_preferences + (
 		('nonactionable_tags', 'string', _('Tags for non-actionable tasks'), '', StringAllowEmpty),
 			# T: label for plugin preferences dialog
@@ -157,6 +159,7 @@ class MainWindowExtension(WindowExtension):
 	def __init__(self, plugin, window):
 		WindowExtension.__init__(self, plugin, window)
 		self._widget = None
+		self.currently_with_due = plugin.preferences['with_due']
 		self.on_preferences_changed(plugin.preferences)
 		self.connectto(plugin.preferences, 'changed', self.on_preferences_changed)
 
@@ -170,7 +173,12 @@ class MainWindowExtension(WindowExtension):
 		dialog.present()
 
 	def on_preferences_changed(self, preferences):
-		if preferences['embedded']:
+		reset_widget = self.currently_with_due != preferences['with_due']
+		self.currently_with_due = preferences['with_due']
+		if self._widget and (not preferences['embedded'] or reset_widget):
+			self.window.remove(self._widget)
+			self._widget = None
+		if preferences['embedded'] or reset_widget:
 			if self._widget is None:
 				self._init_widget()
 			else:
@@ -182,10 +190,6 @@ class MainWindowExtension(WindowExtension):
 			self.window.add_tab(_('Tasks'), self._widget, preferences['pane'])
 											# T: tab label for side pane
 			self._widget.show_all()
-		else:
-			if self._widget:
-				self.window.remove(self._widget)
-				self._widget = None
 
 	def _init_widget(self):
 		index = self.window.ui.notebook.index # XXX
